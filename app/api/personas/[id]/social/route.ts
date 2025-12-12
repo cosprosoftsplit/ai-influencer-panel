@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPersonaPrompts } from "@/lib/google-sheets";
+import { getSocialAccounts } from "@/lib/google-sheets";
 
 export async function GET(
   request: Request,
@@ -7,12 +7,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const prompts = await getPersonaPrompts(id);
-    return NextResponse.json(prompts);
+    const accounts = await getSocialAccounts(id);
+    return NextResponse.json(accounts);
   } catch (error) {
-    console.error("Error fetching prompts:", error);
+    console.error("Error fetching social accounts:", error);
     return NextResponse.json(
-      { error: "Failed to fetch prompts" },
+      { error: "Failed to fetch social accounts" },
       { status: 500 }
     );
   }

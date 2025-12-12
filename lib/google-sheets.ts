@@ -44,3 +44,57 @@ export async function getPersonas() {
     return persona;
   });
 }
+
+export async function getPersonaPrompts(personaId: string) {
+  const data = await getSheetData("Persona_Prompts!A:H");
+  if (!data || data.length < 2) return [];
+
+  const headers = data[0];
+  const rows = data.slice(1);
+
+  return rows
+    .map((row) => {
+      const prompt: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        prompt[header] = row[index] || "";
+      });
+      return prompt;
+    })
+    .filter((prompt) => prompt.persona_id === personaId);
+}
+
+export async function getVoiceProfiles(personaId: string) {
+  const data = await getSheetData("Voice_Profiles!A:J");
+  if (!data || data.length < 2) return [];
+
+  const headers = data[0];
+  const rows = data.slice(1);
+
+  return rows
+    .map((row) => {
+      const voice: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        voice[header] = row[index] || "";
+      });
+      return voice;
+    })
+    .filter((voice) => voice.persona_id === personaId);
+}
+
+export async function getSocialAccounts(personaId: string) {
+  const data = await getSheetData("Social_Accounts!A:G");
+  if (!data || data.length < 2) return [];
+
+  const headers = data[0];
+  const rows = data.slice(1);
+
+  return rows
+    .map((row) => {
+      const account: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        account[header] = row[index] || "";
+      });
+      return account;
+    })
+    .filter((account) => account.persona_id === personaId);
+}

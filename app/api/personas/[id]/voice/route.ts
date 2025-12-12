@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPersonaPrompts } from "@/lib/google-sheets";
+import { getVoiceProfiles } from "@/lib/google-sheets";
 
 export async function GET(
   request: Request,
@@ -7,12 +7,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const prompts = await getPersonaPrompts(id);
-    return NextResponse.json(prompts);
+    const voices = await getVoiceProfiles(id);
+    return NextResponse.json(voices);
   } catch (error) {
-    console.error("Error fetching prompts:", error);
+    console.error("Error fetching voice profiles:", error);
     return NextResponse.json(
-      { error: "Failed to fetch prompts" },
+      { error: "Failed to fetch voice profiles" },
       { status: 500 }
     );
   }
