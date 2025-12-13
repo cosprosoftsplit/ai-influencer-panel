@@ -53,6 +53,22 @@ export default function Home() {
             >
               Workflows & Jobs
             </button>
+
+            <div className="flex gap-4 mt-4">
+            <button
+              onClick={() => window.location.href = "/workflows"}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            >
+              Workflows & Jobs
+            </button>
+            <button
+              onClick={() => window.location.href = "/calendar"}
+              className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
+            >
+              Content Calendar
+            </button>
+          </div>
+
           </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {personas.map((persona) => (

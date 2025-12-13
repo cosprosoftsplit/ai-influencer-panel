@@ -158,3 +158,42 @@ export async function getCronSchedules(personaId?: string) {
   }
   return schedules;
 }
+
+export async function getContentCalendar(personaId?: string) {
+  const data = await getSheetData("Content_Calendar!A:L");
+  if (!data || data.length < 2) return [];
+
+  const headers = data[0];
+  const rows = data.slice(1);
+
+  const items = rows.map((row) => {
+    const item: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      item[header] = row[index] || "";
+    });
+    return item;
+  });
+
+  if (personaId) {
+    return items.filter((item) => item.persona_id === personaId);
+  }
+  return items;
+}
+
+export async function addContentSlot(slot: Record<string, string>) {
+  const values = [
+    slot.slot_id,
+    slot.persona_id,
+    slot.scheduled_date,
+    slot.scheduled_time,
+    slot.platform,
+    slot.content_type,
+    slot.title,
+    slot.description,
+    slot.asset_ids || "",
+    slot.status,
+    slot.publish_url || "",
+    slot.notes || "",
+  ];
+  await appendRow("Content_Calendar", values);
+}

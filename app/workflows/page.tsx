@@ -147,7 +147,7 @@ export default function WorkflowsPage() {
         <div className="max-w-6xl mx-auto px-8 py-6">
           <button
             onClick={() => router.push("/")}
-            className="text-gray-500 hover:text-gray-700 mb-4"
+            className="text-gray-500 hover:text-gray-900 mb-4"
           >
             Back to Dashboard
           </button>
@@ -194,7 +194,7 @@ export default function WorkflowsPage() {
               className={`px-4 py-2 rounded-lg capitalize ${
                 filter === f
                   ? "bg-purple-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
+                  : "bg-white text-gray-900 hover:bg-gray-200"
               }`}
             >
               {f}
@@ -266,11 +266,11 @@ export default function WorkflowsPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Persona</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Persona</label>
                 <select
                   value={newJob.persona_id}
                   onChange={(e) => setNewJob({ ...newJob, persona_id: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border rounded-lg px-3 py-2 text-gray-900 bg-white"
                 >
                   <option value="">Select persona...</option>
                   {personas.map((p) => (
@@ -282,11 +282,11 @@ export default function WorkflowsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Job Type</label>
                 <select
                   value={newJob.job_type}
                   onChange={(e) => setNewJob({ ...newJob, job_type: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border rounded-lg px-3 py-2 text-gray-900 bg-white"
                 >
                   <option value="">Select type...</option>
                   {JOB_TYPES.map((t) => (
@@ -298,11 +298,11 @@ export default function WorkflowsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Priority</label>
                 <select
                   value={newJob.priority}
                   onChange={(e) => setNewJob({ ...newJob, priority: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border rounded-lg px-3 py-2 text-gray-900 bg-white"
                 >
                   <option value="1">1 - Urgent (run now)</option>
                   <option value="2">2 - High</option>
@@ -313,19 +313,19 @@ export default function WorkflowsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   Schedule For (optional)
                 </label>
                 <input
                   type="datetime-local"
                   value={newJob.scheduled_for}
                   onChange={(e) => setNewJob({ ...newJob, scheduled_for: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border rounded-lg px-3 py-2 text-gray-900 bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prompt / Description</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Prompt / Description</label>
                 <textarea
                   value={newJob.parameters.prompt}
                   onChange={(e) =>
@@ -334,13 +334,13 @@ export default function WorkflowsPage() {
                       parameters: { ...newJob.parameters, prompt: e.target.value },
                     })
                   }
-                  className="w-full border rounded-lg px-3 py-2 h-24"
+                  className="w-full border rounded-lg px-3 py-2 h-24 text-gray-900 bg-white"
                   placeholder="Describe what you want to generate..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Count</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Count</label>
                 <input
                   type="number"
                   min="1"
@@ -352,7 +352,7 @@ export default function WorkflowsPage() {
                       parameters: { ...newJob.parameters, count: parseInt(e.target.value) || 1 },
                     })
                   }
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border rounded-lg px-3 py-2 text-gray-900 bg-white"
                 />
               </div>
             </div>
@@ -360,7 +360,7 @@ export default function WorkflowsPage() {
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => setShowNewJob(false)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                className="px-4 py-2 text-gray-900 hover:bg-gray-200 rounded-lg"
               >
                 Cancel
               </button>
