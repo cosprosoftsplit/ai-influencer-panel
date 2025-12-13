@@ -98,3 +98,63 @@ export async function getSocialAccounts(personaId: string) {
     })
     .filter((account) => account.persona_id === personaId);
 }
+
+export async function getJobQueue(personaId?: string) {
+  const data = await getSheetData("Job_Queue!A:L");
+  if (!data || data.length < 2) return [];
+
+  const headers = data[0];
+  const rows = data.slice(1);
+
+  const jobs = rows.map((row) => {
+    const job: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      job[header] = row[index] || "";
+    });
+    return job;
+  });
+
+  if (personaId) {
+    return jobs.filter((job) => job.persona_id === personaId);
+  }
+  return jobs;
+}
+
+export async function addJob(job: Record<string, string>) {
+  const values = [
+    job.job_id,
+    job.persona_id,
+    job.job_type,
+    job.priority,
+    job.status,
+    job.scheduled_for,
+    job.parameters,
+    job.created_at,
+    job.started_at || "",
+    job.completed_at || "",
+    job.result || "",
+    job.error || "",
+  ];
+  await appendRow("Job_Queue", values);
+}
+
+export async function getCronSchedules(personaId?: string) {
+  const data = await getSheetData("Cron_Schedules!A:I");
+  if (!data || data.length < 2) return [];
+
+  const headers = data[0];
+  const rows = data.slice(1);
+
+  const schedules = rows.map((row) => {
+    const schedule: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      schedule[header] = row[index] || "";
+    });
+    return schedule;
+  });
+
+  if (personaId) {
+    return schedules.filter((s) => s.persona_id === personaId || s.persona_id === "*");
+  }
+  return schedules;
+}

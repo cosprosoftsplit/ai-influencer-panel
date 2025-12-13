@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPersonaPrompts } from "@/lib/google-sheets";
+import { getPersonas } from "@/lib/google-sheets";
 
 export async function GET(
   request: Request,
@@ -7,12 +7,21 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const prompts = await getPersonaPrompts(id);
-    return NextResponse.json(prompts);
+    const personas = await getPersonas();
+    const persona = personas.find((p) => p.persona_id === id);
+
+    if (!persona) {
+      return NextResponse.json(
+        { error: "Persona not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(persona);
   } catch (error) {
-    console.error("Error fetching prompts:", error);
+    console.error("Error fetching persona:", error);
     return NextResponse.json(
-      { error: "Failed to fetch prompts" },
+      { error: "Failed to fetch persona" },
       { status: 500 }
     );
   }
