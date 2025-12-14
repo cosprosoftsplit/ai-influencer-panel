@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import PersonaRadarChart from "@/app/components/PersonaRadarChart";
 
 interface Persona {
   persona_id: string;
@@ -44,30 +45,92 @@ interface Social {
   notes: string;
 }
 
+interface PersonaProfile {
+  id: string;
+  name: string;
+  archetype: string;
+  version: string;
+  metrics: {
+    introversion: number;
+    emotional_depth: number;
+    visual_aesthetic: number;
+    content_pace: number;
+    tech_attitude: number;
+    authenticity: number;
+    engagement_style: number;
+    nostalgia_factor: number;
+  };
+  visual_identity: {
+    model: string;
+    aspect_ratio: string;
+    trigger_words: string;
+    base_prompt: string;
+    negative_prompt: string;
+    facial_features: string[];
+  };
+  brand_voice: {
+    tone: string;
+    keywords: string[];
+    banned_words: string[];
+    style_rule: string;
+    signature_emoji: string;
+  };
+  psychology: {
+    mbti: string;
+    attachment_style: string;
+    astrology: string;
+    core_drives: string[];
+    flaws: string[];
+    triggers: Record<string, string>;
+    opinions: Record<string, string>;
+  };
+  biography: {
+    education: string;
+    origin: string;
+    current_status: string;
+    key_memories: string[];
+    current_obsession: string;
+  };
+  relationships: Record<string, { role: string; dynamic: string }>;
+}
+
 export default function PersonaDetail() {
   const params = useParams();
   const router = useRouter();
   const [persona, setPersona] = useState<Persona | null>(null);
+  const [profile, setProfile] = useState<PersonaProfile | null>(null);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [socials, setSocials] = useState<Social[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("identity");
+  const [activeTab, setActiveTab] = useState("profile");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [personaRes, promptsRes, voicesRes, socialsRes] = await Promise.all([
+        const [personaRes, profileRes, promptsRes, voicesRes, socialsRes] = await Promise.all([
           fetch(`/api/personas/${params.id}`),
+          fetch(`/api/personas/${params.id}/profile`),
           fetch(`/api/personas/${params.id}/prompts`),
           fetch(`/api/personas/${params.id}/voice`),
           fetch(`/api/personas/${params.id}/social`),
         ]);
 
-        setPersona(await personaRes.json());
-        setPrompts(await promptsRes.json());
-        setVoices(await voicesRes.json());
-        setSocials(await socialsRes.json());
+        const personaData = await personaRes.json();
+        setPersona(personaData);
+
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setProfile(profileData);
+        }
+
+        const promptsData = await promptsRes.json();
+        const voicesData = await voicesRes.json();
+        const socialsData = await socialsRes.json();
+
+        setPrompts(Array.isArray(promptsData) ? promptsData : []);
+        setVoices(Array.isArray(voicesData) ? voicesData : []);
+        setSocials(Array.isArray(socialsData) ? socialsData : []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -95,11 +158,23 @@ export default function PersonaDetail() {
   }
 
   const tabs = [
+    { id: "profile", label: "Profile" },
     { id: "identity", label: "Identity" },
     { id: "prompts", label: `Prompts (${prompts.length})` },
     { id: "voice", label: `Voice (${voices.length})` },
     { id: "social", label: `Social (${socials.length})` },
   ];
+
+  const radarData = profile?.metrics
+    ? [
+        {
+          persona_id: persona.persona_id,
+          name: persona.name,
+          color: "#8b5cf6",
+          metrics: profile.metrics,
+        },
+      ]
+    : [];
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -117,7 +192,7 @@ export default function PersonaDetail() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{persona.name}</h1>
-              <p className="text-gray-600">{persona.tagline}</p>
+              <p className="text-gray-600">{profile?.archetype || persona.tagline}</p>
             </div>
             <span
               className={`ml-4 px-3 py-1 rounded-full text-sm ${
@@ -128,6 +203,9 @@ export default function PersonaDetail() {
             >
               {persona.status || "unknown"}
             </span>
+            {profile?.brand_voice?.signature_emoji && (
+              <span className="text-2xl">{profile.brand_voice.signature_emoji}</span>
+            )}
           </div>
         </div>
       </div>
@@ -153,6 +231,216 @@ export default function PersonaDetail() {
       </div>
 
       <div className="max-w-6xl mx-auto px-8 py-8">
+        {/* PROFILE TAB */}
+        {activeTab === "profile" && (
+          <div className="space-y-6">
+            {/* Radar Chart */}
+            {radarData.length > 0 ? (
+              <PersonaRadarChart personas={radarData} showComparison={false} />
+            ) : (
+              <div className="bg-white rounded-lg shadow p-6">
+                <p className="text-gray-500">No profile metrics available. Add a Persona_Profiles entry with metrics.</p>
+              </div>
+            )}
+
+            {/* Psychology Section */}
+            {profile?.psychology && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Psychology</h3>
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <p className="text-sm text-gray-500">MBTI</p>
+                    <p className="text-xl font-bold text-purple-600">{profile.psychology.mbti}</p>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <p className="text-sm text-gray-500">Attachment</p>
+                    <p className="text-sm font-medium text-purple-600">{profile.psychology.attachment_style}</p>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <p className="text-sm text-gray-500">Astrology</p>
+                    <p className="text-sm font-medium text-purple-600">{profile.psychology.astrology}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Core Drives</p>
+                    <div className="flex flex-wrap gap-2">
+                      {profile.psychology.core_drives.map((drive, i) => (
+                        <span key={i} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                          {drive}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Flaws</p>
+                    <div className="flex flex-wrap gap-2">
+                      {profile.psychology.flaws.map((flaw, i) => (
+                        <span key={i} className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                          {flaw}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Opinions</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {Object.entries(profile.psychology.opinions).map(([key, value]) => (
+                        <div key={key} className="p-3 bg-gray-50 rounded-lg">
+                          <p className="text-xs text-gray-500 uppercase">{key}</p>
+                          <p className="text-sm text-gray-700">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Brand Voice Section */}
+            {profile?.brand_voice && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Brand Voice</h3>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-1">Tone</p>
+                    <p className="text-gray-900">{profile.brand_voice.tone}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-1">Style Rule</p>
+                    <p className="text-gray-900 italic">"{profile.brand_voice.style_rule}"</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Keywords</p>
+                      <div className="flex flex-wrap gap-2">
+                        {profile.brand_voice.keywords.map((word, i) => (
+                          <span key={i} className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-sm">
+                            {word}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Banned Words</p>
+                      <div className="flex flex-wrap gap-2">
+                        {profile.brand_voice.banned_words.map((word, i) => (
+                          <span key={i} className="px-2 py-1 bg-red-100 text-red-800 rounded text-sm line-through">
+                            {word}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Biography Section */}
+            {profile?.biography && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Biography</h3>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Education</p>
+                    <p className="text-gray-900">{profile.biography.education}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Current Status</p>
+                    <p className="text-gray-900">{profile.biography.current_status}</p>
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-500">Origin</p>
+                  <p className="text-gray-900">{profile.biography.origin}</p>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Key Memories</p>
+                  <ul className="space-y-2">
+                    {profile.biography.key_memories.map((memory, i) => (
+                      <li key={i} className="flex items-start gap-2 text-gray-700">
+                        <span className="text-purple-500">•</span>
+                        {memory}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Current Obsession</p>
+                  <p className="text-gray-900 font-medium">{profile.biography.current_obsession}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Visual Identity Section */}
+            {profile?.visual_identity && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Visual Identity</h3>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Model</p>
+                    <p className="text-gray-900 font-mono">{profile.visual_identity.model}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Aspect Ratio</p>
+                    <p className="text-gray-900">{profile.visual_identity.aspect_ratio}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Trigger Words</p>
+                    <p className="text-gray-900 text-sm">{profile.visual_identity.trigger_words}</p>
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-500 mb-1">Base Prompt</p>
+                  <p className="text-gray-900 bg-gray-50 p-3 rounded font-mono text-sm">
+                    {profile.visual_identity.base_prompt}
+                  </p>
+                </div>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-500 mb-1">Negative Prompt</p>
+                  <p className="text-gray-900 bg-red-50 p-3 rounded font-mono text-sm text-red-800">
+                    {profile.visual_identity.negative_prompt}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Facial Features</p>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.visual_identity.facial_features.map((feature, i) => (
+                      <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm">
+                        {feature}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Relationships Section */}
+            {profile?.relationships && Object.keys(profile.relationships).length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Relationships</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(profile.relationships).map(([name, rel]) => (
+                    <div key={name} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-semibold text-gray-900">{name}</span>
+                        <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">
+                          {rel.role}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">{rel.dynamic}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* IDENTITY TAB */}
         {activeTab === "identity" && (
           <div className="bg-white rounded-lg shadow p-6 space-y-6">
             <div>
@@ -195,6 +483,7 @@ export default function PersonaDetail() {
           </div>
         )}
 
+        {/* PROMPTS TAB */}
         {activeTab === "prompts" && (
           <div className="space-y-4">
             {prompts.length === 0 ? (
@@ -235,6 +524,7 @@ export default function PersonaDetail() {
           </div>
         )}
 
+        {/* VOICE TAB */}
         {activeTab === "voice" && (
           <div className="space-y-4">
             {voices.length === 0 ? (
@@ -277,6 +567,7 @@ export default function PersonaDetail() {
           </div>
         )}
 
+        {/* SOCIAL TAB */}
         {activeTab === "social" && (
           <div className="space-y-4">
             {socials.length === 0 ? (

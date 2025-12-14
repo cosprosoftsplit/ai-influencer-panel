@@ -197,3 +197,22 @@ export async function addContentSlot(slot: Record<string, string>) {
   ];
   await appendRow("Content_Calendar", values);
 }
+
+export async function getPersonaProfile(personaId: string) {
+  const data = await getSheetData("Persona_Profiles!A:C");
+  if (!data || data.length < 2) return null;
+
+  const headers = data[0];
+  const rows = data.slice(1);
+
+  for (const row of rows) {
+    if (row[0] === personaId) {
+      try {
+        return JSON.parse(row[1]);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
