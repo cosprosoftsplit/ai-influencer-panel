@@ -47,11 +47,11 @@ export default function Home() {
           Manage your digital personas, content, and workflows
         </p>
           <div className="flex gap-4 mt-4">
-            <button
-              onClick={() => window.location.href = "/workflows"}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              <button
+              onClick={() => window.location.href = "/accounts"}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
-              Workflows & Jobs
+              Account Management
             </button>
 
             <div className="flex gap-4 mt-4">
