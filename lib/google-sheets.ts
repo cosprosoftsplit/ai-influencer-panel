@@ -216,3 +216,124 @@ export async function getPersonaProfile(personaId: string) {
   }
   return null;
 }
+
+export async function updateRow(
+  sheetName: string,
+  searchColumn: string,
+  searchValue: string,
+  updates: Record<string, string>
+) {
+  const sheets = await getSheets();
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+
+  // First, get all data to find the row
+  const data = await getSheetData(`${sheetName}!A:Z`);
+  if (!data || data.length < 2) {
+    throw new Error("Sheet is empty or not found");
+  }
+
+  const headers = data[0];
+  const searchColIndex = headers.indexOf(searchColumn);
+
+  if (searchColIndex === -1) {
+    throw new Error(`Column ${searchColumn} not found`);
+  }
+
+  // Find the row index (add 1 for header, add 1 for 1-based index)
+  let rowIndex = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][searchColIndex] === searchValue) {
+      rowIndex = i + 1; // 1-based index for Sheets API
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
+    throw new Error(`Row with ${searchColumn}=${searchValue} not found`);
+  }
+
+  // Build the update values array
+  const currentRow = data[rowIndex - 1];
+  const newRow = headers.map((header, index) => {
+    if (updates.hasOwnProperty(header)) {
+      return updates[header];
+    }
+    return currentRow[index] || "";
+  });
+
+  // Update the row
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sheetId,
+    range: `${sheetName}!A${rowIndex}:${String.fromCharCode(65 + headers.length - 1)}${rowIndex}`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [newRow],
+    },
+  });
+
+  return { success: true, rowIndex };
+}
+
+export async function deleteRow(
+  sheetName: string,
+  searchColumn: string,
+  searchValue: string
+) {
+  const sheets = await getSheets();
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+
+  // Get sheet metadata to find the sheet's gid
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId: sheetId,
+  });
+
+  const sheet = spreadsheet.data.sheets?.find(
+    (s) => s.properties?.title === sheetName
+  );
+
+  if (!sheet?.properties?.sheetId) {
+    throw new Error(`Sheet ${sheetName} not found`);
+  }
+
+  // Find the row
+  const data = await getSheetData(`${sheetName}!A:Z`);
+  if (!data || data.length < 2) {
+    throw new Error("Sheet is empty");
+  }
+
+  const headers = data[0];
+  const searchColIndex = headers.indexOf(searchColumn);
+
+  let rowIndex = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][searchColIndex] === searchValue) {
+      rowIndex = i; // 0-based for delete request
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
+    throw new Error(`Row not found`);
+  }
+
+  // Delete the row
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: sheetId,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId: sheet.properties.sheetId,
+              dimension: "ROWS",
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1,
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  return { success: true };
+}

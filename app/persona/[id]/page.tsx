@@ -45,21 +45,23 @@ interface Social {
   notes: string;
 }
 
+interface PersonaMetrics {
+  introversion: number;
+  emotional_depth: number;
+  visual_aesthetic: number;
+  content_pace: number;
+  tech_attitude: number;
+  authenticity: number;
+  engagement_style: number;
+  nostalgia_factor: number;
+}
+
 interface PersonaProfile {
   id: string;
   name: string;
   archetype: string;
   version: string;
-  metrics: {
-    introversion: number;
-    emotional_depth: number;
-    visual_aesthetic: number;
-    content_pace: number;
-    tech_attitude: number;
-    authenticity: number;
-    engagement_style: number;
-    nostalgia_factor: number;
-  };
+  metrics: PersonaMetrics;
   visual_identity: {
     model: string;
     aspect_ratio: string;
@@ -103,43 +105,107 @@ export default function PersonaDetail() {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [socials, setSocials] = useState<Social[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
+  
+  // Edit modes
+  const [editingBasic, setEditingBasic] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editingMetrics, setEditingMetrics] = useState(false);
+  
+  // Edit form data
+  const [basicForm, setBasicForm] = useState<Persona | null>(null);
+  const [profileForm, setProfileForm] = useState<PersonaProfile | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [personaRes, profileRes, promptsRes, voicesRes, socialsRes] = await Promise.all([
-          fetch(`/api/personas/${params.id}`),
-          fetch(`/api/personas/${params.id}/profile`),
-          fetch(`/api/personas/${params.id}/prompts`),
-          fetch(`/api/personas/${params.id}/voice`),
-          fetch(`/api/personas/${params.id}/social`),
-        ]);
-
-        const personaData = await personaRes.json();
-        setPersona(personaData);
-
-        if (profileRes.ok) {
-          const profileData = await profileRes.json();
-          setProfile(profileData);
-        }
-
-        const promptsData = await promptsRes.json();
-        const voicesData = await voicesRes.json();
-        const socialsData = await socialsRes.json();
-
-        setPrompts(Array.isArray(promptsData) ? promptsData : []);
-        setVoices(Array.isArray(voicesData) ? voicesData : []);
-        setSocials(Array.isArray(socialsData) ? socialsData : []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, [params.id]);
+
+  const fetchData = async () => {
+    try {
+      const [personaRes, profileRes, promptsRes, voicesRes, socialsRes] = await Promise.all([
+        fetch(`/api/personas/${params.id}`),
+        fetch(`/api/personas/${params.id}/profile`),
+        fetch(`/api/personas/${params.id}/prompts`),
+        fetch(`/api/personas/${params.id}/voice`),
+        fetch(`/api/personas/${params.id}/social`),
+      ]);
+
+      const personaData = await personaRes.json();
+      setPersona(personaData);
+      setBasicForm(personaData);
+
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        setProfile(profileData);
+        setProfileForm(profileData);
+      }
+
+      const promptsData = await promptsRes.json();
+      const voicesData = await voicesRes.json();
+      const socialsData = await socialsRes.json();
+
+      setPrompts(Array.isArray(promptsData) ? promptsData : []);
+      setVoices(Array.isArray(voicesData) ? voicesData : []);
+      setSocials(Array.isArray(socialsData) ? socialsData : []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveBasicInfo = async () => {
+    if (!basicForm) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/personas/${params.id}/update`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ basic: basicForm }),
+      });
+      if (res.ok) {
+        setPersona(basicForm);
+        setEditingBasic(false);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!profileForm) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/personas/${params.id}/update`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: profileForm }),
+      });
+      if (res.ok) {
+        setProfile(profileForm);
+        setEditingProfile(false);
+        setEditingMetrics(false);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateMetric = (key: keyof PersonaMetrics, value: number) => {
+    if (!profileForm) return;
+    setProfileForm({
+      ...profileForm,
+      metrics: {
+        ...profileForm.metrics,
+        [key]: value,
+      },
+    });
+  };
 
   if (loading) {
     return (
@@ -171,7 +237,7 @@ export default function PersonaDetail() {
           persona_id: persona.persona_id,
           name: persona.name,
           color: "#8b5cf6",
-          metrics: profile.metrics,
+          metrics: profileForm?.metrics || profile.metrics,
         },
       ]
     : [];
@@ -234,9 +300,63 @@ export default function PersonaDetail() {
         {/* PROFILE TAB */}
         {activeTab === "profile" && (
           <div className="space-y-6">
-            {/* Radar Chart */}
+            {/* Radar Chart with Edit */}
             {radarData.length > 0 ? (
-              <PersonaRadarChart personas={radarData} showComparison={false} />
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Psychographic Profile</h3>
+                  {!editingMetrics ? (
+                    <button
+                      onClick={() => setEditingMetrics(true)}
+                      className="text-purple-600 hover:text-purple-800 text-sm"
+                    >
+                      Edit Metrics
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setProfileForm(profile);
+                          setEditingMetrics(false);
+                        }}
+                        className="text-gray-600 hover:text-gray-800 text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={saveProfile}
+                        disabled={saving}
+                        className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                      >
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {editingMetrics && profileForm?.metrics ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    {Object.entries(profileForm.metrics).map(([key, value]) => (
+                      <div key={key} className="text-center">
+                        <label className="block text-sm text-gray-600 mb-1 capitalize">
+                          {key.replace(/_/g, " ")}
+                        </label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          value={value}
+                          onChange={(e) => updateMetric(key as keyof PersonaMetrics, parseInt(e.target.value))}
+                          className="w-full"
+                        />
+                        <span className="text-lg font-bold text-purple-600">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                <PersonaRadarChart personas={radarData} showComparison={false} />
+              </div>
             ) : (
               <div className="bg-white rounded-lg shadow p-6">
                 <p className="text-gray-500">No profile metrics available. Add a Persona_Profiles entry with metrics.</p>
@@ -246,57 +366,156 @@ export default function PersonaDetail() {
             {/* Psychology Section */}
             {profile?.psychology && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Psychology</h3>
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <p className="text-sm text-gray-500">MBTI</p>
-                    <p className="text-xl font-bold text-purple-600">{profile.psychology.mbti}</p>
-                  </div>
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <p className="text-sm text-gray-500">Attachment</p>
-                    <p className="text-sm font-medium text-purple-600">{profile.psychology.attachment_style}</p>
-                  </div>
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <p className="text-sm text-gray-500">Astrology</p>
-                    <p className="text-sm font-medium text-purple-600">{profile.psychology.astrology}</p>
-                  </div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Psychology</h3>
+                  {!editingProfile ? (
+                    <button
+                      onClick={() => setEditingProfile(true)}
+                      className="text-purple-600 hover:text-purple-800 text-sm"
+                    >
+                      Edit
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setProfileForm(profile);
+                          setEditingProfile(false);
+                        }}
+                        className="text-gray-600 hover:text-gray-800 text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={saveProfile}
+                        disabled={saving}
+                        className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                      >
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-2">Core Drives</p>
-                    <div className="flex flex-wrap gap-2">
-                      {profile.psychology.core_drives.map((drive, i) => (
-                        <span key={i} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                          {drive}
-                        </span>
-                      ))}
+                {editingProfile && profileForm?.psychology ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">MBTI</label>
+                        <input
+                          type="text"
+                          value={profileForm.psychology.mbti}
+                          onChange={(e) => setProfileForm({
+                            ...profileForm,
+                            psychology: { ...profileForm.psychology, mbti: e.target.value }
+                          })}
+                          className="w-full border rounded-lg px-3 py-2"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Attachment Style</label>
+                        <input
+                          type="text"
+                          value={profileForm.psychology.attachment_style}
+                          onChange={(e) => setProfileForm({
+                            ...profileForm,
+                            psychology: { ...profileForm.psychology, attachment_style: e.target.value }
+                          })}
+                          className="w-full border rounded-lg px-3 py-2"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Astrology</label>
+                        <input
+                          type="text"
+                          value={profileForm.psychology.astrology}
+                          onChange={(e) => setProfileForm({
+                            ...profileForm,
+                            psychology: { ...profileForm.psychology, astrology: e.target.value }
+                          })}
+                          className="w-full border rounded-lg px-3 py-2"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Core Drives (comma-separated)</label>
+                      <input
+                        type="text"
+                        value={profileForm.psychology.core_drives.join(", ")}
+                        onChange={(e) => setProfileForm({
+                          ...profileForm,
+                          psychology: { ...profileForm.psychology, core_drives: e.target.value.split(", ").map(s => s.trim()) }
+                        })}
+                        className="w-full border rounded-lg px-3 py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Flaws (comma-separated)</label>
+                      <input
+                        type="text"
+                        value={profileForm.psychology.flaws.join(", ")}
+                        onChange={(e) => setProfileForm({
+                          ...profileForm,
+                          psychology: { ...profileForm.psychology, flaws: e.target.value.split(", ").map(s => s.trim()) }
+                        })}
+                        className="w-full border rounded-lg px-3 py-2"
+                      />
                     </div>
                   </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-2">Flaws</p>
-                    <div className="flex flex-wrap gap-2">
-                      {profile.psychology.flaws.map((flaw, i) => (
-                        <span key={i} className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm">
-                          {flaw}
-                        </span>
-                      ))}
+                ) : (
+                  <>
+                    <div className="grid grid-cols-3 gap-4 mb-6">
+                      <div className="text-center p-4 bg-purple-50 rounded-lg">
+                        <p className="text-sm text-gray-500">MBTI</p>
+                        <p className="text-xl font-bold text-purple-600">{profile.psychology.mbti}</p>
+                      </div>
+                      <div className="text-center p-4 bg-purple-50 rounded-lg">
+                        <p className="text-sm text-gray-500">Attachment</p>
+                        <p className="text-sm font-medium text-purple-600">{profile.psychology.attachment_style}</p>
+                      </div>
+                      <div className="text-center p-4 bg-purple-50 rounded-lg">
+                        <p className="text-sm text-gray-500">Astrology</p>
+                        <p className="text-sm font-medium text-purple-600">{profile.psychology.astrology}</p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-2">Opinions</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {Object.entries(profile.psychology.opinions).map(([key, value]) => (
-                        <div key={key} className="p-3 bg-gray-50 rounded-lg">
-                          <p className="text-xs text-gray-500 uppercase">{key}</p>
-                          <p className="text-sm text-gray-700">{value}</p>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Core Drives</p>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.psychology.core_drives.map((drive, i) => (
+                            <span key={i} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                              {drive}
+                            </span>
+                          ))}
                         </div>
-                      ))}
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Flaws</p>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.psychology.flaws.map((flaw, i) => (
+                            <span key={i} className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                              {flaw}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Opinions</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {Object.entries(profile.psychology.opinions).map(([key, value]) => (
+                            <div key={key} className="p-3 bg-gray-50 rounded-lg">
+                              <p className="text-xs text-gray-500 uppercase">{key}</p>
+                              <p className="text-sm text-gray-700">{value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -442,44 +661,146 @@ export default function PersonaDetail() {
 
         {/* IDENTITY TAB */}
         {activeTab === "identity" && (
-          <div className="bg-white rounded-lg shadow p-6 space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <p className="text-gray-900">{persona.name}</p>
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+              {!editingBasic ? (
+                <button
+                  onClick={() => setEditingBasic(true)}
+                  className="text-purple-600 hover:text-purple-800 text-sm"
+                >
+                  Edit
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setBasicForm(persona);
+                      setEditingBasic(false);
+                    }}
+                    className="text-gray-600 hover:text-gray-800 text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveBasicInfo}
+                    disabled={saving}
+                    className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                  >
+                    {saving ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tagline</label>
-              <p className="text-gray-900">{persona.tagline || "—"}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Backstory</label>
-              <p className="text-gray-900 whitespace-pre-wrap">{persona.backstory || "—"}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Traits</label>
-              <div className="flex flex-wrap gap-2">
-                {persona.traits ? (
-                  persona.traits.split(",").map((trait) => (
-                    <span
-                      key={trait}
-                      className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm"
-                    >
-                      {trait.trim()}
-                    </span>
-                  ))
-                ) : (
-                  <p className="text-gray-500">—</p>
-                )}
+
+            {editingBasic && basicForm ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={basicForm.name}
+                    onChange={(e) => setBasicForm({ ...basicForm, name: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tagline</label>
+                  <input
+                    type="text"
+                    value={basicForm.tagline}
+                    onChange={(e) => setBasicForm({ ...basicForm, tagline: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Backstory</label>
+                  <textarea
+                    value={basicForm.backstory}
+                    onChange={(e) => setBasicForm({ ...basicForm, backstory: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 h-32"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Traits (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={basicForm.traits}
+                    onChange={(e) => setBasicForm({ ...basicForm, traits: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ethics Guidelines</label>
+                  <textarea
+                    value={basicForm.ethics_guidelines}
+                    onChange={(e) => setBasicForm({ ...basicForm, ethics_guidelines: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 h-24"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Brand Colors</label>
+                  <input
+                    type="text"
+                    value={basicForm.brand_colors}
+                    onChange={(e) => setBasicForm({ ...basicForm, brand_colors: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={basicForm.status}
+                    onChange={(e) => setBasicForm({ ...basicForm, status: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="development">Development</option>
+                  </select>
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ethics Guidelines</label>
-              <p className="text-gray-900 whitespace-pre-wrap">{persona.ethics_guidelines || "—"}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Brand Colors</label>
-              <p className="text-gray-900">{persona.brand_colors || "—"}</p>
-            </div>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <p className="text-gray-900">{persona.name}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tagline</label>
+                  <p className="text-gray-900">{persona.tagline || "—"}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Backstory</label>
+                  <p className="text-gray-900 whitespace-pre-wrap">{persona.backstory || "—"}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Traits</label>
+                  <div className="flex flex-wrap gap-2">
+                    {persona.traits ? (
+                      persona.traits.split(",").map((trait) => (
+                        <span
+                          key={trait}
+                          className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm"
+                        >
+                          {trait.trim()}
+                        </span>
+                      ))
+                    ) : (
+                      <p className="text-gray-500">—</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ethics Guidelines</label>
+                  <p className="text-gray-900 whitespace-pre-wrap">{persona.ethics_guidelines || "—"}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Brand Colors</label>
+                  <p className="text-gray-900">{persona.brand_colors || "—"}</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

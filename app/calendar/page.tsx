@@ -60,19 +60,17 @@ export default function CalendarPage() {
   const [slots, setSlots] = useState<ContentSlot[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showNewSlot, setShowNewSlot] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<ContentSlot | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editingSlot, setEditingSlot] = useState<ContentSlot | null>(null);
 
-  // Filters
   const [filterPersona, setFilterPersona] = useState<string>("all");
   const [filterPlatform, setFilterPlatform] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  // Current week view
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // New slot form
-  const [newSlot, setNewSlot] = useState({
+  const emptySlot: ContentSlot = {
+    slot_id: "",
     persona_id: "",
     scheduled_date: "",
     scheduled_time: "",
@@ -80,9 +78,13 @@ export default function CalendarPage() {
     content_type: "",
     title: "",
     description: "",
+    asset_ids: "",
     status: "draft",
+    publish_url: "",
     notes: "",
-  });
+  };
+
+  const [formData, setFormData] = useState<ContentSlot>(emptySlot);
 
   useEffect(() => {
     fetchData();
@@ -108,27 +110,65 @@ export default function CalendarPage() {
     }
   };
 
-  const createSlot = async () => {
-    try {
-      const res = await fetch("/api/calendar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newSlot),
-      });
+  const openNewSlot = (date?: Date) => {
+    const newSlot = { ...emptySlot };
+    if (date) {
+      newSlot.scheduled_date = formatDate(date);
+    }
+    setFormData(newSlot);
+    setEditingSlot(null);
+    setShowModal(true);
+  };
 
-      if (res.ok) {
-        setShowNewSlot(false);
-        setNewSlot({
-          persona_id: "",
-          scheduled_date: "",
-          scheduled_time: "",
-          platform: "",
-          content_type: "",
-          title: "",
-          description: "",
-          status: "draft",
-          notes: "",
+  const openEditSlot = (slot: ContentSlot) => {
+    setFormData(slot);
+    setEditingSlot(slot);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingSlot(null);
+    setFormData(emptySlot);
+  };
+
+  const saveSlot = async () => {
+    try {
+      if (editingSlot) {
+        const res = await fetch(`/api/calendar/${editingSlot.slot_id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
         });
+        if (res.ok) {
+          closeModal();
+          fetchData();
+        }
+      } else {
+        const res = await fetch("/api/calendar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        });
+        if (res.ok) {
+          closeModal();
+          fetchData();
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteSlot = async (slotId: string) => {
+    if (!confirm("Are you sure you want to delete this content slot?")) return;
+
+    try {
+      const res = await fetch(`/api/calendar/${slotId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        closeModal();
         fetchData();
       }
     } catch (err) {
@@ -136,7 +176,6 @@ export default function CalendarPage() {
     }
   };
 
-  // Get week days
   const getWeekDays = () => {
     const startOfWeek = new Date(currentDate);
     const day = startOfWeek.getDay();
@@ -208,7 +247,7 @@ export default function CalendarPage() {
               <p className="text-gray-600">Plan and schedule content across all personas</p>
             </div>
             <button
-              onClick={() => setShowNewSlot(true)}
+              onClick={() => openNewSlot()}
               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
             >
               + New Content
@@ -263,19 +302,19 @@ export default function CalendarPage() {
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={() => navigateWeek(-1)}
-                className="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-900 bg-white"
+                className="px-3 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300"
               >
                 Previous
               </button>
               <button
                 onClick={() => setCurrentDate(new Date())}
-                className="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-900 bg-white" 
+                className="px-3 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300"
               >
                 Today
               </button>
               <button
                 onClick={() => navigateWeek(1)}
-                className="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-900 bg-white"
+                className="px-3 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300"
               >
                 Next
               </button>
@@ -325,10 +364,18 @@ export default function CalendarPage() {
                     isToday ? "bg-purple-50/30" : ""
                   }`}
                 >
+                  {/* Add button for empty days */}
+                  <button
+                    onClick={() => openNewSlot(day)}
+                    className="w-full text-left text-xs text-gray-400 hover:text-purple-600 mb-2"
+                  >
+                    + Add content
+                  </button>
+
                   {daySlots.map((slot) => (
                     <div
                       key={slot.slot_id}
-                      onClick={() => setSelectedSlot(slot)}
+                      onClick={() => openEditSlot(slot)}
                       className={`p-2 mb-2 rounded border-l-4 cursor-pointer hover:shadow-md transition-shadow ${getPersonaColor(
                         slot.persona_id
                       )}`}
@@ -389,19 +436,31 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* New Slot Modal */}
-      {showNewSlot && (
+      {/* New/Edit Slot Modal */}
+      {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Schedule New Content</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingSlot ? "Edit Content" : "Schedule New Content"}
+              </h2>
+              {editingSlot && (
+                <button
+                  onClick={() => deleteSlot(editingSlot.slot_id)}
+                  className="text-red-600 hover:text-red-800 text-sm"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Persona</label>
                 <select
-                  value={newSlot.persona_id}
-                  onChange={(e) => setNewSlot({ ...newSlot, persona_id: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
+                  value={formData.persona_id}
+                  onChange={(e) => setFormData({ ...formData, persona_id: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2 text-gray-900"
                 >
                   <option value="">Select persona...</option>
                   {personas.map((p) => (
@@ -417,8 +476,8 @@ export default function CalendarPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                   <input
                     type="date"
-                    value={newSlot.scheduled_date}
-                    onChange={(e) => setNewSlot({ ...newSlot, scheduled_date: e.target.value })}
+                    value={formData.scheduled_date}
+                    onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2"
                   />
                 </div>
@@ -426,8 +485,8 @@ export default function CalendarPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
                   <input
                     type="time"
-                    value={newSlot.scheduled_time}
-                    onChange={(e) => setNewSlot({ ...newSlot, scheduled_time: e.target.value })}
+                    value={formData.scheduled_time}
+                    onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2"
                   />
                 </div>
@@ -437,9 +496,9 @@ export default function CalendarPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Platform</label>
                   <select
-                    value={newSlot.platform}
-                    onChange={(e) => setNewSlot({ ...newSlot, platform: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2"
+                    value={formData.platform}
+                    onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 text-gray-900"
                   >
                     <option value="">Select platform...</option>
                     {PLATFORMS.map((p) => (
@@ -452,9 +511,9 @@ export default function CalendarPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Content Type</label>
                   <select
-                    value={newSlot.content_type}
-                    onChange={(e) => setNewSlot({ ...newSlot, content_type: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2"
+                    value={formData.content_type}
+                    onChange={(e) => setFormData({ ...formData, content_type: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 text-gray-900"
                   >
                     <option value="">Select type...</option>
                     {CONTENT_TYPES.map((t) => (
@@ -470,8 +529,8 @@ export default function CalendarPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                 <input
                   type="text"
-                  value={newSlot.title}
-                  onChange={(e) => setNewSlot({ ...newSlot, title: e.target.value })}
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2"
                   placeholder="Content title..."
                 />
@@ -480,8 +539,8 @@ export default function CalendarPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
-                  value={newSlot.description}
-                  onChange={(e) => setNewSlot({ ...newSlot, description: e.target.value })}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2 h-24"
                   placeholder="Brief description or script notes..."
                 />
@@ -490,9 +549,9 @@ export default function CalendarPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
-                  value={newSlot.status}
-                  onChange={(e) => setNewSlot({ ...newSlot, status: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2 text-gray-900"
                 >
                   {STATUS_OPTIONS.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -501,90 +560,44 @@ export default function CalendarPage() {
                   ))}
                 </select>
               </div>
+
+              {editingSlot && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Publish URL</label>
+                  <input
+                    type="url"
+                    value={formData.publish_url}
+                    onChange={(e) => setFormData({ ...formData, publish_url: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                    placeholder="https://instagram.com/p/..."
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2 h-20"
+                  placeholder="Any additional notes..."
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => setShowNewSlot(false)}
+                onClick={closeModal}
                 className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
               >
                 Cancel
               </button>
               <button
-                onClick={createSlot}
-                disabled={!newSlot.persona_id || !newSlot.scheduled_date || !newSlot.platform}
+                onClick={saveSlot}
+                disabled={!formData.persona_id || !formData.scheduled_date || !formData.platform}
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
               >
-                Create Content Slot
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Slot Detail Modal */}
-      {selectedSlot && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">{selectedSlot.title || "Untitled"}</h2>
-              <span className={`px-2 py-1 rounded text-sm ${getStatusStyle(selectedSlot.status)}`}>
-                {selectedSlot.status}
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Persona</p>
-                  <p className="font-medium">
-                    {personas.find((p) => p.persona_id === selectedSlot.persona_id)?.name || selectedSlot.persona_id}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Platform</p>
-                  <p className="font-medium">
-                    {PLATFORMS.find((p) => p.id === selectedSlot.platform)?.icon}{" "}
-                    {PLATFORMS.find((p) => p.id === selectedSlot.platform)?.label}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Type</p>
-                  <p className="font-medium">{selectedSlot.content_type}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm text-gray-500">Scheduled</p>
-                <p className="font-medium">
-                  {selectedSlot.scheduled_date} at {selectedSlot.scheduled_time || "No time set"}
-                </p>
-              </div>
-
-              {selectedSlot.description && (
-                <div>
-                  <p className="text-sm text-gray-500">Description</p>
-                  <p className="text-gray-900">{selectedSlot.description}</p>
-                </div>
-              )}
-
-              {selectedSlot.notes && (
-                <div>
-                  <p className="text-sm text-gray-500">Notes</p>
-                  <p className="text-gray-900">{selectedSlot.notes}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setSelectedSlot(null)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              >
-                Close
-              </button>
-              <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                Generate Content
+                {editingSlot ? "Save Changes" : "Create Content Slot"}
               </button>
             </div>
           </div>
