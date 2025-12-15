@@ -69,6 +69,13 @@ export default function Home() {
             </button>
           </div>
 
+          <button
+            onClick={() => window.location.href = "/lora-training"}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+          >
+            LoRA Training
+          </button>
+
           </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {personas.map((persona) => (

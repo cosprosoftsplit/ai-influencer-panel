@@ -223,7 +223,6 @@ export async function updateRow(
   searchValue: string,
   updates: Record<string, string>
 ) {
-  const sheets = await getSheets();
   const sheetId = process.env.GOOGLE_SHEET_ID;
 
   // First, get all data to find the row
@@ -279,7 +278,6 @@ export async function deleteRow(
   searchColumn: string,
   searchValue: string
 ) {
-  const sheets = await getSheets();
   const sheetId = process.env.GOOGLE_SHEET_ID;
 
   // Get sheet metadata to find the sheet's gid
